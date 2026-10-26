@@ -1,0 +1,292 @@
+---
+title: "Final Project"
+output: pdf_document
+date: "2026-10-26"
+---
+
+## Dataset
+The dataset I used is the "Breast Cancer Stat & Aware Dataset (2000-2026)" publically available and downloaded on Kaggle. https://www.kaggle.com/datasets/zkskhurram/breast-cancer-stat-and-aware-dataset-2022-2025/data?select=breast_cancer_by_country.csv
+
+### Data set
+
+Data sets are publicly available from Kaggle. 
+"Breast Cancer Data Set": This data set has binary classification benchmark data for 569 instances and 30 numerical features computed from digitized fine needle aspirate images of breast cancer masses.
+"Cancer Data": This set has the similar classification system to the Breast Cancer Data Set, but from different patients. 
+
+### Task 1: Filter and select
+
+```{r}
+# Load library
+library(dplyr)
+library(tidyr)
+
+# Creating the breast cancer df from the csv file in local folder.
+breastcancer_df <- read.csv('/Users/ACB/Library/CloudStorage/Box-Box/PROPEL Programming & Statistics Final Project/breast_cancer_by_country.csv')
+
+# Testing to see if the df output is correct.
+head(breastcancer_df)
+```
+
+```{r}
+# Filters the `breastcancer_df` to only include top 95% of samples to exclude outliers in area. Selects only the compactness and area-related columns. Omits any rows with null data.
+
+filtered_bc_df <-  breastcancer_df |>
+  filter(area_se < quantile(area_se, 0.95, na.rm = TRUE)) |>
+  select(diagnosis, compactness_mean, compactness_se, area_mean, area_se)
+
+# Check filter function
+head(filtered_bc_df)
+```
+
+### Task 2: mutate()
+
+```{r}
+# Creates a new column metric for the ratio of compactness mean to mean area. Also specifies that all cancers in this dataframe are breast cancer (due to comparison with multiple types of cancer in another df). 
+
+filtered_bc_df <- filtered_bc_df |>
+  mutate(ratio_area_compact = area_mean / compactness_mean,
+         cancer_type = "breast") |>
+  drop_na()
+
+head(filtered_bc_df)
+```
+
+### Task 3: group_by() and summarize()
+
+```{r}
+# Finds the mean ratio of mean area/compactness, mean compactness, and mean area across the B and M groups. 
+
+filtered_bc_df |> 
+  group_by(diagnosis) |>
+  summarise(mean_ratio_area_compact = mean(ratio_area_compact),
+            mean_compactness = mean(compactness_mean),
+            mean_area = mean(area_mean),
+            count_pts = n()) 
+```
+
+### Task 4: Joins
+```{r}
+# Creating the cancer df from the csv file in local folder.
+cancer_df <- read.csv('/Users/coco/Downloads/Chu Lab/Propel Course/Cancer_Data.csv')
+
+# Testing to see if the df output is correct.
+head(cancer_df)
+
+# Repeat the filtering as done in the breast cancer df. Added column to indicate that the specific cancer type from this df is unknown.
+filtered_cancer_df <-  cancer_df |>
+  filter(area_se < quantile(area_se, 0.95, na.rm = TRUE)) |>
+  select(diagnosis, compactness_mean, compactness_se, area_mean, area_se) |>
+  mutate(cancer_type = "unknown", 
+         ratio_area_compact = area_mean / compactness_mean) |>
+  drop_na()
+  
+
+# Join cancer df with breast cancer df 
+all_cancer_df <- rbind(filtered_bc_df, filtered_cancer_df)
+head(all_cancer_df)
+
+# Save new combined df to new csv file. 
+write.csv(all_cancer_df, "combined_cancer.csv")
+
+```
+
+One continuous variable: `Five_Year_Survival_Pct`. 
+One categorical variable: `Country`
+
+## Task 5: Describe a categorical variable
+How many total data entries (observations) are recorded for each continent in the dataset?
+
+```{r}
+# Compute counts per continent using group_by() + summarize()
+continent_entries <- df |> 
+  group_by(Continent) |> 
+  summarize(entry_count = n())
+
+# Create a bar plot using ggplot2
+ggplot(continent_entries, aes(x = Continent, y = entry_count, fill = Continent)) +
+  geom_col() +
+  labs(
+    title = "Number of Data Entries per Continent",
+    x = "Continent",
+    y = "Number of Entries"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+```
+
+In this sample, Asia had the highest number of data entries ($n = 459$), followed by Europe ($n = 351$), while Oceania has the fewest entries ($n = 54$). This distribution demonstrates a varying number of country-level observations reported across each geographic region.
+
+
+## Task 6: Describe a continuous variable
+What is the distribution of the five-year breast cancer survival percentage in 2025?
+
+```{r}
+
+# Create a df that just isolates values from 2025
+df_2025 <- df |>
+  filter(Year == 2025)
+
+# Create a histogram using ggplot
+ggplot(df_2025, aes(x = Five_Year_Survival_Pct)) +
+  geom_histogram(bins = 20, alpha = 0.8) +
+  labs(
+    title = "Distribution of Five-Year Breast Cancer Survival Percentage in 2025",
+    x = "Five-Year Survival Percentage (%)",
+    y = "Frequency"
+  ) +
+  theme_minimal()
+
+# Compute summary statistics (Mean + SD and Five-Number Summary)
+summary_stats <- df_2025 |> 
+  summarise(
+    mean = mean(Five_Year_Survival_Pct, na.rm = TRUE),
+    sd = sd(Five_Year_Survival_Pct, na.rm = TRUE),
+    min = min(Five_Year_Survival_Pct, na.rm = TRUE),
+    q25 = quantile(Five_Year_Survival_Pct, 0.25, na.rm = TRUE),
+    median = median(Five_Year_Survival_Pct, na.rm = TRUE),
+    q75 = quantile(Five_Year_Survival_Pct, 0.75, na.rm = TRUE),
+    max = max(Five_Year_Survival_Pct, na.rm = TRUE)
+  )
+print(summary_stats) # Summary statistics for the five-year survival percentage across in 2025
+
+```
+
+## Task 7: Relationship between two variables
+
+```{r}
+
+# Find the relatioship between treatment access and the five year survival rate. 
+
+ggplot(df, aes(x = Treatment_Access_Score, y = Five_Year_Survival_Pct)) +
+  geom_point(color = "blue", alpha = 0.6) +
+  geom_smooth(method = "lm", color = "red", se = FALSE) + # get the line of best-fit
+  labs(
+    title = "Relationship Between Treatment Access Score and Five-Year Survival",
+    x = "Treatment Access Score",
+    y = "Five-Year Survival Percentage (%)"
+  ) +
+  theme_minimal()
+
+```
+
+In our dataset, there is a strong, positive linear relationship between a country's treatment access score (higher being better acccess to treatment) and the five-year survival rate for breast cancer. The data consistently indicates that countries with greater treatment access have higher breast cancer survival rates during 2000-2026. 
+
+### Task 8: State your hypotheses
+
+Research Question: Do countries with high mammography coverage (>50%) have a higher mean 5-year survival percentage than countries with low mammography coverage (<50%)?
+
+H₀: There is no difference in mean 5-year survival percentage between countries with high mammography coverage and those with low coverage ($\mu_{\text{High}} = \mu_{\text{Low}}$).
+
+Hₐ: Countries with high mammography coverage have a higher mean 5-year survival percentage than those with low coverage ($\mu_{\text{High}} > \mu_{\text{Low}}$).
+
+### Task 9: Check normality
+
+```{r}
+# Creating a binary variable for high (>50%) vs. low coverage (<=50%)
+df <- df |>
+  mutate(Coverage_Group = ifelse(Mammography_Coverage_Pct > 50, 
+                                 "High", "Low"))
+
+# Histograms for the five-year survival pct
+ggplot(df, aes(x = Five_Year_Survival_Pct, fill = Coverage_Group)) +
+  geom_histogram(aes(y = ..density..), bins = 30, alpha = 0.6, position = "identity") +
+  geom_density(alpha = 0.3) +
+ # facet_wrap(~Coverage_Group) +
+  labs(title = "Distribution of 5-Year Survival Percentage by Coverage Group",
+       x = "5-Year Survival Pct",
+       y = "Density") +
+  theme_minimal()
+
+# Q-Q Plots for normality check
+qqnorm(high_group <- df$Five_Year_Survival_Pct[df$Coverage_Group == "High"], 
+       main = "Q-Q Plot: High Coverage Group")
+qqline(high_group, col = "red")
+
+qqnorm(low_group <- df$Five_Year_Survival_Pct[df$Coverage_Group == "Low"], 
+       main = "Q-Q Plot: Low Coverage Group")
+qqline(low_group, col = "blue")
+
+```
+
+Because the normality assumption is violated for the low coverage group, we will proceed with a non-parametric Wilcoxon rank-sum test for our hypothesis testing, as it does not require normality when comparing the distributions of the two independent groups.
+
+### Task 10: Run the appropiate test
+
+```{r}
+# Run  Wilcoxon rank-sum test for independent samples
+wilcox_result <- wilcox.test(Five_Year_Survival_Pct ~ Coverage_Group, 
+                             data = df, 
+                             alternative = "greater")
+
+# Print the test results
+wilcox_result
+```
+
+### Task 11: Written conclusion
+
+To evaluate whether countries with high mammography coverage (>50%) have a higher 5-year breast cancer survival percentage than countries with low coverage (<=50%), we conducted a one-tailed non-parametric Wilcoxon rank-sum test. A non-parametric test was selected because the low coverage group violated the assumption of normality, which was evident with significant S-curve curvature in the Q-Q plot and skewness in the distribution.
+
+Assuming the null hypothesis is true, the probability of yielding our test results by random chance alone is p < 2.2*10^-16 < $\alpha = 0.05$ (assuming this is our significance threshold). Therefore, we reject the null hypothesis--there is a statistically significant different in 5-year breast cancer survival percentage between countries with low and high mammography coverage.
+
+The potential error would be Type I error (false positive) as we rejected the null hypothesis. However, if we don't believe there are other strong confounding factors to influence the test results, the extremely small p-value indicates that there is negligible risk of Type I error. 
+
+## Task 12
+
+```{r}
+
+country_df <- df |>
+  group_by(Country) |>
+  summarize(mean_five_yr_pct = mean(Five_Year_Survival_Pct),
+            mean_treatment = mean(Treatment_Access_Score))
+
+# Data check: histogram of the outcome variable
+ggplot(country_df, aes(x = mean_five_yr_pct)) +
+  geom_histogram(bins = 30) +
+  labs(title = "Distribution of Five-Year Breast Cancer Survival Percentage",
+       x = "Five-Year Survival Percentage (%)",
+       y = "Frequency") +
+  theme_minimal()
+```
+
+The outcome variable is the five-year breast cancer survival percentage. It is a continuous numeric variable because the values range from 20.6% to 94.8% in the dataset. Therefore, linear regression (lm()) is the appropriate model. 
+
+
+## Task 13: Fit the model
+
+```{r}
+# # Multiple linear regression: mean five-year survival predicted by mean treatment access score (averaged across all years for each country)
+model_country <- lm(mean_five_yr_pct ~ mean_treatment + I(mean_treatment^2), data = country_df) # adds a slight curve to the model so to the upside-down U shape
+summary(model_country)
+
+```
+
+## Task 14: Interpret your regression coefficients
+
+Linear term (mean_treatment): Among countries with low treatment access, each 1-point increase in a country’s average treatment access score is associated with ~1.34 percentage-point increase in average five-year breast cancer survival (95% CI: 1.14 to 1.54). The relationship is positive and statistically significant (t = 13.43, p < 2*10^-16).Because the model includes a squared term, this coefficient alone represents the slope at a treatment access score of 0, which is outside the observed data. The slope at observed scores is described below using both terms together.
+
+Squared term (I(mean_treatment^2)): The squared term is negative (−0.0055, 95% CI: −0.0072 to −0.0038) and statistically significant (t = −6.43, p = 6.03*10^-8), meaning the increase in 5-year survival % for each additional point of treatment access gets smaller as treatment access increases. For example, a 10-point increase from 40 to 50 is associated with about 8.5 percentage points higher five-year survival, while a 10-point increase from 80 to 90 is associated with only about 4.0 percentage points. 
+
+Together, the two terms explain about 97% of the variation in average five-year survival across countries (R^2 = 0.97).
+
+## Task 15: Run diagnostic check
+```{r}
+# Residuals vs. fitted plot: checks for linearity and constant spread
+plot(model_country, which = 1)
+
+# Q-Q plot of residuals: checks if residuals are approximately normal
+plot(model_country, which = 2)
+```
+
+Residuals vs. fitted: The residuals are scattered around zero with no clear pattern, and the red trend line stays close to zero across the range of fitted values. This suggests the relationship is somewhat captured by the model. The spread is  wider at lower fitted values (below about 60%) than at higher fitted values.
+
+Q-Q plot: The residuals follow the diagonal line closely through the middle, so they are approximately normally distributed. The tails depart from the line: a few of the highest residuals fall above it. This indicates a small number of more extreme values than expected under a normal distribution.
+
+## Written Paragraph
+
+We modeled the average five-year breast cancer survival percentage averaged for each of 50 countries (2000–2026) using linear regression, with average treatment access score as the predictor. Averaging gave one independent observation per country. I included both a linear and a squared treatment access term so the regression model had a curve to better capture the relationship. 
+
+Higher treatment access was positively associated with higher survival, and both terms were statistically significant (1.34, p < 2* 10^-16, p = 6.03*10^-8). A 1-point increase is associated with about 1.0 percentage point higher survival at a score of 30, but only about 0.35 points at a score of 90. Together, the two terms explained about 97% of the variation in survival across countries (R^2 = 0.97).
+
+Diagnostic checks showed no clear pattern in the residuals. However, the spread was wider among lower-survival countries, and the Q-Q plot showed more extreme values than expected for a few countries, which may be due to other confounding factors such as different countries' regulations and practices. 
+
