@@ -5,3 +5,4 @@ Dataset info: Our dataset is called breastcancerbycountry.csv and it gives breas
 Limitations: The dataset does not show how the Treatment_Access_Score was calculated. Also, there is not data for every country in the world. 
 
 Link to our video: https://drive.google.com/file/d/19-dAZim38SYTfoPu_lHtGyDwnnFBk9Xz/view?usp=sharing
+Another link (better quality hopefully): https://drive.google.com/file/d/1q56JnN5m27LI-zwLHdCuLMZB2cwJ333P/view?usp=sharing
